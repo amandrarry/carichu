@@ -1,0 +1,160 @@
+#include "Player.hh"
+#include <queue>
+
+/**
+ * Write the name of your player and save this file
+ * with the same name and .cc extension.
+ */
+#define PLAYER_NAME Carichu
+static constexpr int I[8] = { 1, 1, 0, -1, -1, -1,  0,  1 };
+static constexpr int J[8] = { 0, 1, 1,  1,  0, -1, -1, -1 };
+
+
+struct PLAYER_NAME : public Player {
+
+  /**
+   * Factory: returns a new instance of this class.
+   * Do not modify this function.
+   */
+  static Player* factory () {
+    return new PLAYER_NAME;
+  }
+
+  //////////////////////////////////////////////////
+  //
+  //
+  //////////////////////////////////////////////////
+
+    struct Pos {
+        int i;
+        int j;
+        int val = -2;              /* -2 si no hi ha res
+                                      HIGH_VALUE si està dins el post
+                                      LOW_VALUE si està al voltant del post
+                                      */
+        bool visited = false;
+        int anti;
+        int antj;
+    };
+
+    vector<vector<Pos>> init_Board(int id) {
+         Data in = data(id);
+         vector<vector<Pos>> mat (MAX, vector<Pos>(MAX));
+         for (int i = 0; i < MAX; i++) {
+             for (int j = 0; j < MAX; j++) {
+                mat[i][j].val = post_value(i,j);
+                mat[i][j].i = i;
+                mat[i][j].j = j;
+             }
+         }
+         return mat;
+    }
+
+    void play_soldier(int id) {
+        Data in = data(id);
+        int i = in.pos.i;
+        int j = in.pos.j;
+        int player = in.player;
+        for (int k = 0; k < 8; k++) {
+                int ii = i + I[k];
+                int jj = i + J[k];
+                if(ii >= 0 and ii < MAX and jj >= 0 and jj < MAX) {
+                    int id2 = which_soldier(ii,jj);
+                    if(id2 and data(id2).player != player) {
+                        command_soldier(id, ii, jj);
+                        return;
+                    }
+                }
+        }
+
+        simpleBFS(id, i, j);
+    }
+
+        //////////////////////////////////
+        //Now it's time for an easy BFS...
+        //////////////////////////////////
+  void simpleBFS(int id, int j, int i){
+      queue<Pos> cua;
+      Pos act;    // posicion del soldado actual
+      act.i = i;
+      act.j = j;
+
+      vector<vector<Pos>> board = init_Board(id); // matriz de visitados
+
+      act.val = board[i][j].val;                  // actualizacion de act
+      board[i][j].visited = true;
+      cua.push(act);                              // añadimos act a la cola
+
+      Pos p;
+      board[i][j].i = i;
+      board[i][j].j = j;
+      board[i][j].anti = i;
+      board[i][j].antj = j;
+
+      while(!cua.empty()) {
+        p = cua.front();
+        cua.pop();
+
+        int val = post_value(p.i, p.j);
+
+        if (val == HIGH_VALUE) {
+            amoberse(board, act, p, id);
+        }
+
+        /*else if (val == LOW_VALUE && !closest_low) {
+          closest_low = true;
+          best_low = p;
+          best_low.val = LOW_VALUE;
+        } */
+
+        for (int i = 0; i < 8; i++) {
+          Pos t;
+          t.i = p.i + I[i];
+          t.j = p.j + J[i];
+
+          if (what(t.i, t.j) != -1 and !board[t.i][t.j].visited and what(t.i, t.j) != MOUNTAIN
+              and what(t.i, t.j) != WATER and fire_time(t.i,t.j) == 0) {
+                    board[t.i][t.j].visited = true;
+                    board[t.i][t.j].anti = p.i;
+                    board[t.i][t.j].antj = p.j;
+                    cua.push(t);
+          }
+        }
+      }
+    }
+
+      void amoberse(const vector<vector<Pos>>& board, Pos ini, Pos fin, int id){
+        Pos ant;
+        ant.i = board[fin.i][fin.j].anti;   // Hay que acceder a la matriz con la pos fin para ver sus ants
+        ant.j = board[fin.i][fin.j].antj;
+        cout << "POSICION INICIAL INI:" << endl << ini.i << " " << ini.j << endl;
+
+        while (ini.i != fin.i and ini.j != fin.j) {  // Mientras la pos inicial no sea igual a la final
+          ant.i = fin.i; ant.j = fin.j;              // La posicion anterior es igual a la inicial
+          fin.i = board[ant.i][ant.j].anti;
+          fin.j = board[ant.i][ant.j].antj;
+          cout << "ANT ES IGUAL A " << ant.i << "  " << ant.j << endl;
+          cout << "FIN ES IGUAL A " << fin.i << "  " << fin.j << endl;
+        }
+        // YO CREO QUE EL WHILE ESTÁ BIEN
+
+        cout << "POSICION ANTERIOR A INI:" << endl << board[ant.i][ant.j].i << " vs " << ant.i << " " << board[ant.i][ant.j].j << " vs " << ant.j << endl;
+        int i = ini.i - board[ant.i][ant.j].i;
+        int j = ini.j - board[ant.i][ant.j].j;
+        command_soldier(id, i, j);
+      }
+
+
+  virtual void play () {
+      int player = me();
+      vector<int> S = soldiers(player);
+      for (int i = 0; i < (int)S.size(); i++) play_soldier(S[i]);
+  }
+
+};
+
+
+/**
+ * Do not modify the following line.
+ */
+RegisterPlayer(PLAYER_NAME);
